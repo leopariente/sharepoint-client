@@ -1,6 +1,6 @@
 import ChatBox from "./components/ChatBox";
 
-export default function Home() {
+const Home = () => {
   return (
     <main className="flex h-screen flex-col bg-white">
       <header className="border-b border-gray-200 px-6 py-4">
@@ -10,4 +10,6 @@ export default function Home() {
       <ChatBox />
     </main>
   );
-}
+};
+
+export default Home;

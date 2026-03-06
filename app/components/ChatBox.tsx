@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import type { ChatMessage, ChatResponseBody } from "@/types";
 
-export default function ChatBox() {
+const ChatBox = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ export default function ChatBox() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  async function sendMessage(e: React.FormEvent) {
+  const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     const userText = input.trim();
     if (!userText || loading) return;
@@ -125,4 +125,6 @@ export default function ChatBox() {
       </form>
     </div>
   );
-}
+};
+
+export default ChatBox;

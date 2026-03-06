@@ -15,7 +15,7 @@ import type {
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
+export const POST = async (req: Request) => {
   const body = await req.json();
 
   // Phase 7: accept full conversation history instead of a single message
@@ -84,4 +84,4 @@ export async function POST(req: Request) {
     reply: textBlocks.join("\n"),
     toolCalls,
   } satisfies ChatResponseBody);
-}
+};

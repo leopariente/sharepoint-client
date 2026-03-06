@@ -3,6 +3,6 @@
 // Named exports (GET, POST, PUT, DELETE) map directly to HTTP methods.
 // Next.js uses the Web-standard Request/Response objects (not Express's req/res).
 
-export async function GET() {
+export const GET = async () => {
   return Response.json({ message: "Hello from the API!" });
-}
+};
