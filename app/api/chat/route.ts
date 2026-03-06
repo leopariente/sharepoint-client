@@ -6,20 +6,14 @@
 // The "anthropic-beta: mcp-client-2025-04-04" header unlocks this feature.
 // Tool calls appear in data.content as blocks — we parse and forward them to the UI.
 
+import type {
+  Message,
+  AnthropicContentBlock,
+  ToolCall,
+  ChatResponseBody,
+} from "@/types";
+
 export const dynamic = "force-dynamic";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface ContentBlock {
-  type: string;
-  text?: string;
-  name?: string;
-  input?: unknown;
-  content?: unknown;
-}
 
 export async function POST(req: Request) {
   const body = await req.json();
@@ -75,9 +69,9 @@ export async function POST(req: Request) {
   // Phase 6: parse the content blocks array
   // Possible block types: "text", "mcp_tool_use", "mcp_tool_result"
   const textBlocks: string[] = [];
-  const toolCalls: { tool: string; input: unknown }[] = [];
+  const toolCalls: ToolCall[] = [];
 
-  for (const block of (data.content ?? []) as ContentBlock[]) {
+  for (const block of (data.content ?? []) as AnthropicContentBlock[]) {
     if (block.type === "text" && block.text) {
       textBlocks.push(block.text);
     } else if (block.type === "mcp_tool_use") {
@@ -89,5 +83,5 @@ export async function POST(req: Request) {
   return Response.json({
     reply: textBlocks.join("\n"),
     toolCalls,
-  });
+  } satisfies ChatResponseBody);
 }

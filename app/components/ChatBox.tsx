@@ -1,15 +1,10 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-
-interface Message {
-  role: "user" | "assistant";
-  content: string;
-  toolCalls?: { tool: string; input: unknown }[];
-}
+import type { ChatMessage, ChatResponseBody } from "@/types";
 
 export default function ChatBox() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -23,7 +18,7 @@ export default function ChatBox() {
     const userText = input.trim();
     if (!userText || loading) return;
 
-    const userMsg: Message = { role: "user", content: userText };
+    const userMsg: ChatMessage = { role: "user", content: userText };
     const updatedMessages = [...messages, userMsg];
     setMessages(updatedMessages);
     setInput("");
@@ -41,7 +36,7 @@ export default function ChatBox() {
         }),
       });
 
-      const data = await res.json();
+      const data: ChatResponseBody & { error?: string } = await res.json();
 
       if (!res.ok) {
         setMessages((prev) => [
