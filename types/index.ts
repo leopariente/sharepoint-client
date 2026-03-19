@@ -19,6 +19,18 @@ export interface ChatMessage extends Message {
 }
 
 // ---------------------------------------------------------------------------
+// Chat Sessions
+// ---------------------------------------------------------------------------
+
+export interface ChatSession {
+  id: string;
+  name: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+// ---------------------------------------------------------------------------
 // Anthropic API
 // ---------------------------------------------------------------------------
 
@@ -37,6 +49,26 @@ export interface AnthropicResponse {
     input_tokens: number;
     output_tokens: number;
   };
+}
+
+// ---------------------------------------------------------------------------
+// Anthropic Streaming
+// ---------------------------------------------------------------------------
+
+export interface AnthropicStreamEvent {
+  type: string;
+  index?: number;
+  content_block?: { type: string; name?: string; id?: string; text?: string };
+  delta?: { type: string; text?: string; partial_json?: string; stop_reason?: string };
+}
+
+export interface StreamTextEvent {
+  text: string;
+}
+
+export interface StreamToolEvent {
+  tool: string;
+  input: unknown;
 }
 
 // ---------------------------------------------------------------------------
