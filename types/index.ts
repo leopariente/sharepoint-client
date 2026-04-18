@@ -18,6 +18,11 @@ export interface ChatMessage extends Message {
   toolCalls?: ToolCall[];
 }
 
+export interface ChatBoxProps {
+  initialMessages: ChatMessage[];
+  onMessagesChange: (messages: ChatMessage[]) => void
+}
+
 // ---------------------------------------------------------------------------
 // Chat Sessions
 // ---------------------------------------------------------------------------

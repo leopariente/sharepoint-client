@@ -4,6 +4,7 @@ import { useState } from "react";
 import ChatBox from "./components/ChatBox";
 import SessionSidebar from "./components/SessionSidebar";
 import { useChatSessions } from "./hooks/useChatSessions";
+import type { ChatMessage } from "@/types";
 
 const Home = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -66,7 +67,7 @@ const Home = () => {
           <ChatBox
             key={activeSessionId}
             initialMessages={activeSession?.messages ?? []}
-            onMessagesChange={(msgs) => updateSession(activeSessionId, msgs)}
+            onMessagesChange={(msgs: ChatMessage[]) => updateSession(activeSessionId, msgs)}
           />
         )}
       </div>

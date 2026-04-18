@@ -4,12 +4,9 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
-import type { ChatMessage, StreamTextEvent, StreamToolEvent } from "@/types";
-
-interface ChatBoxProps {
-  initialMessages?: ChatMessage[];
-  onMessagesChange?: (msgs: ChatMessage[]) => void;
-}
+import type { ChatMessage, ChatBoxProps } from "@/types";
+import { processSSEStream } from "@/app/lib/processSSEStream";
+import ChatInput from "@/app/components/ChatInput";
 
 const ChatBox = ({ initialMessages = [], onMessagesChange }: ChatBoxProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
@@ -43,16 +40,33 @@ const ChatBox = ({ initialMessages = [], onMessagesChange }: ChatBoxProps) => {
 
       // Placeholder assistant message updated in-place during streaming
       const placeholderIndex = history.length;
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "", toolCalls: [] },
-      ]);
+      setMessages((prev) => [...prev, { role: "assistant", content: "", toolCalls: [] }]);
+
+      const patchPlaceholder = (patch: Partial<ChatMessage>) =>
+        setMessages((prev) =>
+          prev.map((m, i) => (i === placeholderIndex ? { ...m, ...patch } : m)),
+        );
 
       const controller = new AbortController();
       abortRef.current = controller;
 
       let accumulatedText = "";
       const accumulatedToolCalls: { tool: string; input: unknown }[] = [];
+
+      const onText = (text: string) => {
+        accumulatedText += text;
+        patchPlaceholder({ content: accumulatedText });
+      };
+
+      const onTool = (tool: string, input: unknown) => {
+        accumulatedToolCalls.push({ tool, input });
+        patchPlaceholder({ toolCalls: [...accumulatedToolCalls] });
+      };
+
+      const onStreamError = (error: string) => {
+        accumulatedText += `\n\n_Stream error: ${error}_`;
+        patchPlaceholder({ content: accumulatedText });
+      };
 
       try {
         const res = await fetch("/api/chat", {
@@ -66,76 +80,14 @@ const ChatBox = ({ initialMessages = [], onMessagesChange }: ChatBoxProps) => {
 
         if (!res.ok || !res.body) {
           const data = await res.json().catch(() => ({ error: "Unknown error" }));
-          setMessages((prev) =>
-            prev.map((m, i) =>
-              i === placeholderIndex
-                ? { ...m, content: `Error: ${data.error ?? "Something went wrong."}` }
-                : m,
-            ),
-          );
+          patchPlaceholder({ content: `Error: ${data.error ?? "Something went wrong."}` });
           return;
         }
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let pendingEventType = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split("\n");
-          buffer = lines.pop() ?? "";
-
-          for (const line of lines) {
-            if (line.startsWith("event: ")) {
-              pendingEventType = line.slice(7).trim();
-            } else if (line.startsWith("data: ")) {
-              const raw = line.slice(6).trim();
-
-              if (pendingEventType === "text") {
-                const { text } = JSON.parse(raw) as StreamTextEvent;
-                accumulatedText += text;
-                setMessages((prev) =>
-                  prev.map((m, i) =>
-                    i === placeholderIndex ? { ...m, content: accumulatedText } : m,
-                  ),
-                );
-              } else if (pendingEventType === "tool") {
-                const { tool, input } = JSON.parse(raw) as StreamToolEvent;
-                accumulatedToolCalls.push({ tool, input });
-                setMessages((prev) =>
-                  prev.map((m, i) =>
-                    i === placeholderIndex
-                      ? { ...m, toolCalls: [...accumulatedToolCalls] }
-                      : m,
-                  ),
-                );
-              } else if (pendingEventType === "error") {
-                const { error } = JSON.parse(raw) as { error: string };
-                accumulatedText += `\n\n_Stream error: ${error}_`;
-                setMessages((prev) =>
-                  prev.map((m, i) =>
-                    i === placeholderIndex ? { ...m, content: accumulatedText } : m,
-                  ),
-                );
-              }
-
-              pendingEventType = "";
-            }
-          }
-        }
+        await processSSEStream(res.body, onText, onTool, onStreamError);
       } catch (err) {
         if ((err as Error).name === "AbortError") return;
-        setMessages((prev) =>
-          prev.map((m, i) =>
-            i === placeholderIndex
-              ? { ...m, content: `Network error: ${String(err)}` }
-              : m,
-          ),
-        );
+        patchPlaceholder({ content: `Network error: ${String(err)}` });
       } finally {
         setIsStreaming(false);
         // Notify parent with final messages for localStorage persistence
@@ -264,25 +216,12 @@ const ChatBox = ({ initialMessages = [], onMessagesChange }: ChatBoxProps) => {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input bar */}
-      <form onSubmit={sendMessage} className="border-t border-gray-200 px-6 py-4 flex gap-3">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about your SharePoint files..."
-          disabled={isStreaming}
-          autoComplete="off"
-          className="flex-1 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-800 placeholder-gray-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:opacity-50"
-        />
-        <button
-          type="submit"
-          disabled={isStreaming || !input.trim()}
-          className="rounded-xl bg-blue-600 px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          {isStreaming ? "..." : "Send"}
-        </button>
-      </form>
+      <ChatInput
+        value={input}
+        onChange={setInput}
+        onSubmit={sendMessage}
+        isStreaming={isStreaming}
+      />
     </div>
   );
 };
